@@ -43,6 +43,9 @@ const App: React.FC = () => {
   // 搜索状态
   const [searchQuery, setSearchQuery] = useState('');
 
+  // 选中记录状态（用于查看大图）
+  const [selectedRecord, setSelectedRecord] = useState<SubmissionRecord | null>(null);
+
   const [activeWorkflowId, setActiveWorkflowId] = useState<string | null>(null);
   const [surveyQueue, setSurveyQueue] = useState<SurveyType[]>([]);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
@@ -530,6 +533,61 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* 发票大图预览Modal */}
+      {selectedRecord && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+          onClick={() => setSelectedRecord(null)}
+        >
+          <div
+            className="bg-white rounded-[2rem] p-8 max-w-2xl w-full max-h-[90vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-black">发票详情</h2>
+              <button
+                onClick={() => setSelectedRecord(null)}
+                className="text-2xl text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* 发票预览占位图 */}
+            <div className="bg-slate-100 rounded-2xl p-8 mb-6 flex items-center justify-center min-h-[200px]">
+              <div className="text-center text-slate-400">
+                <span className="text-6xl block">🧾</span>
+                <p className="text-sm mt-2">发票图片预览</p>
+              </div>
+            </div>
+
+            {/* 发票信息 */}
+            <div className="space-y-3">
+              <div className="flex justify-between border-b border-slate-100 pb-2">
+                <span className="text-slate-500">发票号</span>
+                <span className="font-bold">{selectedRecord.invoiceNumber}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-2">
+                <span className="text-slate-500">金额</span>
+                <span className="font-bold text-blue-600">¥{selectedRecord.amount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-2">
+                <span className="text-slate-500">类别</span>
+                <span className="font-bold">{selectedRecord.category}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-2">
+                <span className="text-slate-500">销售方</span>
+                <span className="font-bold">{selectedRecord.sellerName || '-'}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-100 pb-2">
+                <span className="text-slate-500">状态</span>
+                <span className="font-bold">{selectedRecord.status}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
         {!isAdminMode && (
           <div className="lg:col-span-5 space-y-6 animate-in fade-in slide-in-from-left duration-700">
@@ -708,7 +766,11 @@ const App: React.FC = () => {
               {dbError && <div className="col-span-full p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs font-bold flex items-center gap-3 animate-pulse"><span>⚠️ 数据库连接失败: {dbError}。请检查环境变量配置。</span></div>}
               {displayRecords.length === 0 && !dbError && <div className="col-span-full flex flex-col items-center justify-center h-[50vh] opacity-30 grayscale"><span className="text-9xl mb-4">📥</span><p className="text-2xl font-black text-slate-400">尚无报销记录</p></div>}
               {displayRecords.map(r => (
-                <div key={r.id} className={`bg-white border-2 rounded-[2rem] p-8 transition-all group hover:shadow-2xl relative overflow-hidden flex flex-col ${r.status === 'rejected' ? 'border-red-100 bg-red-50/10 shadow-red-50/20' : 'border-slate-50'}`}>
+                <div
+                  key={r.id}
+                  onClick={() => !isAdminMode && setSelectedRecord(r)}
+                  className={`bg-white border-2 rounded-[2rem] p-8 transition-all group hover:shadow-2xl relative overflow-hidden flex flex-col cursor-pointer ${r.status === 'rejected' ? 'border-red-100 bg-red-50/10 shadow-red-50/20' : 'border-slate-50'}`}
+                >
                   {r.status === 'rejected' && <div className="absolute top-6 right-6 z-0 pointer-events-none opacity-20 rotate-12"><span className="text-9xl font-black text-red-500 select-none">×</span></div>}
                   {r.status === 'success' && <div className="absolute top-6 right-6 z-0 pointer-events-none opacity-10"><span className="text-9xl font-black text-green-500 select-none">✓</span></div>}
                   <div className="flex justify-between items-start mb-6 relative z-10">
