@@ -3,9 +3,10 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as api from './services/api';
 import { SubmissionRecord, ProcessingFile, InvoiceData, UserProfile, ReimbursementStatus } from './types';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 // 设置pdf.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const SCHOOL_NAME = "江南大学";
 
@@ -38,7 +39,9 @@ const App: React.FC = () => {
 
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
+  const [recordsCurrentPage, setRecordsCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 6;
+  const RECORDS_PER_PAGE = 3;
 
   // 搜索状态
   const [searchQuery, setSearchQuery] = useState('');
@@ -86,6 +89,21 @@ const App: React.FC = () => {
 
     return recordsToShow;
   }, [records, userRecords, isAdminMode, searchQuery]);
+
+  // 记录列表分页计算
+  const paginatedRecords = useMemo(() => {
+    const start = (recordsCurrentPage - 1) * RECORDS_PER_PAGE;
+    return displayRecords.slice(start, start + RECORDS_PER_PAGE);
+  }, [displayRecords, recordsCurrentPage]);
+
+  const recordsTotalPages = Math.ceil(displayRecords.length / RECORDS_PER_PAGE);
+
+  // 当记录列表变化时，重置到第一页
+  useEffect(() => {
+    if (displayRecords.length > 0 && (recordsCurrentPage - 1) * RECORDS_PER_PAGE >= displayRecords.length) {
+      setRecordsCurrentPage(1);
+    }
+  }, [displayRecords.length]);
 
   const mapRecordFromApi = (record: any): SubmissionRecord => ({
     id: record.id,
@@ -224,7 +242,7 @@ const App: React.FC = () => {
     canvas.height = viewport.height;
     canvas.width = viewport.width;
 
-    await page.render({ canvasContext: context!, viewport }).promise;
+    await page.render({ canvasContext: context!, viewport, canvas }).promise;
     return canvas.toDataURL('image/png');
   };
 
@@ -792,7 +810,11 @@ const App: React.FC = () => {
                 )}
                 <div className="flex flex-col items-end">
                   <span className="text-[10px] font-black text-slate-300 uppercase">Records Found</span>
-                  <span className="text-xl font-black text-blue-600">{displayRecords.length}</span>
+                  <span className="text-xl font-black text-blue-600">
+                    {displayRecords.length > RECORDS_PER_PAGE
+                      ? `${(recordsCurrentPage - 1) * RECORDS_PER_PAGE + 1}-${Math.min(recordsCurrentPage * RECORDS_PER_PAGE, displayRecords.length)} / ${displayRecords.length}`
+                      : displayRecords.length}
+                  </span>
                 </div>
               </div>
             </div>
@@ -800,7 +822,7 @@ const App: React.FC = () => {
             <div className={`flex-grow overflow-auto p-8 ${isAdminMode ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 justify-items-center' : 'space-y-6'}`}>
               {dbError && <div className="col-span-full p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs font-bold flex items-center gap-3 animate-pulse"><span>⚠️ 数据库连接失败: {dbError}。请检查环境变量配置。</span></div>}
               {displayRecords.length === 0 && !dbError && <div className="col-span-full flex flex-col items-center justify-center h-[50vh] opacity-30 grayscale"><span className="text-9xl mb-4">📥</span><p className="text-2xl font-black text-slate-400">尚无报销记录</p></div>}
-              {displayRecords.map(r => (
+              {paginatedRecords.map(r => (
                 <div
                   key={r.id}
                   onClick={() => !isAdminMode && setSelectedRecord(r)}
@@ -820,12 +842,12 @@ const App: React.FC = () => {
                     <div className="flex items-start gap-3">
                       <div className="text-right">
                         <div className="text-2xl font-black text-blue-600">¥{r.amount.toFixed(2)}</div>
-                        <button onClick={() => toggleRecordPaidStatus(r.id)} className={`mt-2 px-4 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-95 shadow-sm ${r.isPaid ? 'bg-blue-500 text-white shadow-blue-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>{r.isPaid ? '已付发票' : '待付发票'}</button>
+                        <button onClick={(e) => { e.stopPropagation(); toggleRecordPaidStatus(r.id); }} className={`mt-2 px-4 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-95 shadow-sm ${r.isPaid ? 'bg-blue-500 text-white shadow-blue-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>{r.isPaid ? '已付发票' : '待付发票'}</button>
                       </div>
                       {/* 用户只能删除自己创建的、状态为 box 的记录；管理员可以删除任意记录 */}
                       {(isAdminMode || (r.status === 'box' && r.studentId === user?.studentId)) && (
                         <button
-                          onClick={() => handleDeleteRecord(r.id)}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteRecord(r.id); }}
                           disabled={isLoading}
                           className={`p-2 rounded-xl transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : 'text-slate-400 hover:bg-red-50 hover:text-red-500'}`}
                           title={isAdminMode ? "删除报销单" : "仅可删除待提交的报销单"}
@@ -846,6 +868,39 @@ const App: React.FC = () => {
                   )}
                 </div>
               ))}
+
+              {/* 记录列表分页组件 */}
+              {displayRecords.length > RECORDS_PER_PAGE && (
+                <div className={`flex justify-center items-center gap-2 mt-6 pb-6 ${isAdminMode ? 'col-span-full sticky bottom-0 bg-white/90 backdrop-blur-sm py-4 border-t -mx-8' : ''}`}>
+                  <button
+                    onClick={() => setRecordsCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={recordsCurrentPage === 1}
+                    className="px-4 py-2 bg-slate-100 rounded-xl text-sm font-bold disabled:opacity-50 hover:bg-slate-200 transition-colors"
+                  >
+                    上一页
+                  </button>
+                  {Array.from({ length: recordsTotalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setRecordsCurrentPage(page)}
+                      className={`w-10 h-10 rounded-xl text-sm font-bold transition-colors ${
+                        recordsCurrentPage === page
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setRecordsCurrentPage(p => Math.min(recordsTotalPages, p + 1))}
+                    disabled={recordsCurrentPage === recordsTotalPages}
+                    className="px-4 py-2 bg-slate-100 rounded-xl text-sm font-bold disabled:opacity-50 hover:bg-slate-200 transition-colors"
+                  >
+                    下一页
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
