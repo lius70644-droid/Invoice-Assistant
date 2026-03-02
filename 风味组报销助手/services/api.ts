@@ -96,5 +96,5 @@ export const exportAllCSV = async () => {
 };
 
 // OCR
-export const extractInvoice = (image: string) =>
-  request('/ocr/extract', { method: 'POST', body: JSON.stringify({ image }) });
+export const extractInvoice = (image: string, category?: string) =>
+  request('/ocr/extract', { method: 'POST', body: JSON.stringify({ image, category }) });

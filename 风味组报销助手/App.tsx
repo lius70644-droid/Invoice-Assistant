@@ -184,16 +184,16 @@ const App: React.FC = () => {
       status: 'pending' as const
     }));
     setFiles(prev => [...prev, ...newFiles]);
-    newFiles.forEach(processFile);
+    newFiles.forEach(item => processFile(item, selectedCategory));
   };
 
-  const processFile = async (item: ProcessingFile) => {
+  const processFile = async (item: ProcessingFile, category?: string) => {
     setFiles(prev => prev.map(f => f.id === item.id ? { ...f, status: 'processing' } : f));
     const reader = new FileReader();
     reader.onload = async () => {
       const base64 = reader.result as string;
       try {
-        const data = await api.extractInvoice(base64);
+        const data = await api.extractInvoice(base64, category);
         const isBuyerValid = data.isBuyerValid;
         const isDuplicate = records.some(r => r.invoiceNumber.trim().toUpperCase() === data.invoiceNumber.trim().toUpperCase());
         setFiles(prev => prev.map(f => f.id === item.id ? { ...f, status: 'completed', extractedData: data, isBuyerValid, isDuplicate } : f));
@@ -492,7 +492,21 @@ const App: React.FC = () => {
                           <div>
                             <div className="flex justify-between items-start">
                               <span className="text-2xl font-black text-slate-800">¥{item.extractedData.amount.toFixed(2)}</span>
-                              <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full uppercase tracking-tighter">{item.extractedData.category}</span>
+                              <select
+                                value={item.extractedData.category}
+                                onChange={(e) => {
+                                  const newCategory = e.target.value;
+                                  setFiles(prev => prev.map(f => f.id === item.id ? {
+                                    ...f,
+                                    extractedData: { ...f.extractedData, category: newCategory }
+                                  } : f));
+                                }}
+                                className="text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full uppercase tracking-tighter border-none cursor-pointer"
+                              >
+                                {INVOICE_CATEGORIES.map(cat => (
+                                  <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                              </select>
                             </div>
                             <p className="text-[10px] font-bold text-slate-400 mt-1 truncate">No. {item.extractedData.invoiceNumber}</p>
                           </div>
