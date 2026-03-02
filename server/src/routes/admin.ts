@@ -115,11 +115,13 @@ router.get('/export', authenticateAdmin, async (req, res) => {
 
     if (error) throw error;
 
-    const headers = ['发票号', '金额', '分类', '提交人', '学号', '电话', '导师', '状态', '老师签字', '支付记录', '当前进度', '退单原因'];
+    const headers = ['发票号', '金额', '分类', '销售方名称', '销售方税号', '提交人', '学号', '电话', '导师', '状态', '老师签字', '支付记录', '当前进度', '退单原因'];
     const rows = (data || []).map((r: any) => [
       r.invoice_number,
       r.amount,
       r.category,
+      r.seller_name || '',
+      r.seller_tax_id || '',
       r.name,
       r.student_id,
       r.phone,
