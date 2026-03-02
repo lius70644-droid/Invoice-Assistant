@@ -5,6 +5,8 @@ import { config } from '../config';
 export interface UserPayload {
   studentId: string;
   name: string;
+  supervisor?: string;
+  phone?: string;
 }
 
 export interface AdminPayload {

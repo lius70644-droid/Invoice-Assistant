@@ -22,7 +22,7 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { studentId, name },
+      { studentId, name, supervisor, phone },
       config.jwt.secret,
       { expiresIn: config.jwt.userExpiry }
     );

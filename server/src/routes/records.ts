@@ -73,6 +73,8 @@ router.post('/', authenticateUser, async (req: any, res) => {
       .insert([{
         name: user.name,
         student_id: user.studentId,
+        phone: user.phone,
+        supervisor: user.supervisor,
         invoice_number: body.invoiceNumber,
         seller_name: body.sellerName,
         buyer_name: body.buyerName,
