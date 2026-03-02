@@ -5,6 +5,17 @@ import { SubmissionRecord, ProcessingFile, InvoiceData, UserProfile, Reimburseme
 
 const SCHOOL_NAME = "江南大学";
 
+const INVOICE_CATEGORIES = [
+  '实验室用品',
+  '高通量测序',
+  '测试费',
+  '专利费/菌种保藏',
+  '版面费/快递费',
+  '市内交通费',
+  '设备/设备维修',
+  '其他'
+];
+
 type SurveyType = 'double_signature' | 'payment_record';
 
 const App: React.FC = () => {
@@ -18,6 +29,7 @@ const App: React.FC = () => {
   const [records, setRecords] = useState<SubmissionRecord[]>([]);
   const [dbError, setDbError] = useState<string | null>(null);
   const [isPaid, setIsPaid] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(INVOICE_CATEGORIES[0]);
 
   const [activeWorkflowId, setActiveWorkflowId] = useState<string | null>(null);
   const [surveyQueue, setSurveyQueue] = useState<SurveyType[]>([]);
@@ -438,6 +450,19 @@ const App: React.FC = () => {
                     <span className={`text-lg font-black transition-colors ${isPaid ? 'text-blue-700' : 'text-slate-300'}`}>已付发票</span>
                   </label>
                 </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="text-[10px] font-black text-slate-400 uppercase ml-2 block mb-2">发票类别</label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full border-2 p-3 rounded-2xl outline-none focus:border-blue-500 bg-slate-50"
+                >
+                  {INVOICE_CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
               </div>
 
               <div onClick={() => fileInputRef.current?.click()} className="border-4 border-dashed border-slate-100 rounded-[2rem] p-12 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-all group relative overflow-hidden">
