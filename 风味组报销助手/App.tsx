@@ -545,7 +545,7 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            <div className={`flex-grow overflow-auto p-8 ${isAdminMode ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8' : 'space-y-6'}`}>
+            <div className={`flex-grow overflow-auto p-8 ${isAdminMode ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 justify-items-center' : 'space-y-6'}`}>
               {dbError && <div className="col-span-full p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs font-bold flex items-center gap-3 animate-pulse"><span>⚠️ 数据库连接失败: {dbError}。请检查环境变量配置。</span></div>}
               {displayRecords.length === 0 && !dbError && <div className="col-span-full flex flex-col items-center justify-center h-[50vh] opacity-30 grayscale"><span className="text-9xl mb-4">📥</span><p className="text-2xl font-black text-slate-400">尚无报销记录</p></div>}
               {displayRecords.map(r => (
