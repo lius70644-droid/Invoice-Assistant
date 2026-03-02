@@ -47,11 +47,15 @@ export const getRecords = () => request('/records');
 export const createRecord = (data: any) =>
   request('/records', { method: 'POST', body: JSON.stringify(data) });
 
-export const deleteRecord = (id: string, isAdmin: boolean = false) =>
-  request(`/records/${id}`, {
+export const deleteRecord = (id: string, isAdmin: boolean = false) => {
+  const adminToken = getAdminToken();
+  return request(`/records/${id}`, {
     method: 'DELETE',
-    headers: isAdmin ? { 'X-Admin-Mode': 'true' } : {}
+    headers: {
+      ...(isAdmin && adminToken ? { 'X-Admin-Mode': 'true', 'Authorization': `Bearer ${adminToken}` } : {})
+    }
   });
+};
 
 export const updatePaidStatus = (id: string, isPaid: boolean) =>
   request(`/records/${id}/paid`, { method: 'PUT', body: JSON.stringify({ isPaid }) });
