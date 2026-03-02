@@ -4,16 +4,16 @@ services:
   app:
     build: .
     ports:
-      - "80:80"
+      - "8080:80"
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-      - ALIYUN_ACCESS_KEY_ID=${ALIYUN_ACCESS_KEY_ID}
-      - ALIYUN_ACCESS_KEY_SECRET=${ALIYUN_ACCESS_KEY_SECRET}
-      - ADMIN_USERNAME=${ADMIN_USERNAME}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - JWT_SECRET=${JWT_SECRET}
+      - SUPABASE_URL=${SUPABASE_URL:-https://placeholder.supabase.co}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-placeholder}
+      - ALIYUN_ACCESS_KEY_ID=${ALIYUN_ACCESS_KEY_ID:-placeholder}
+      - ALIYUN_ACCESS_KEY_SECRET=${ALIYUN_ACCESS_KEY_SECRET:-placeholder}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - JWT_SECRET=${JWT_SECRET:-placeholder_jwt_secret}
       - PORT=3000
     restart: unless-stopped

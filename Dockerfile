@@ -18,6 +18,9 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 
+# Install nginx
+RUN apk add --no-cache nginx bash
+
 # Copy backend
 COPY --from=backend /app/backend/dist ./dist
 COPY --from=backend /app/backend/node_modules ./node_modules

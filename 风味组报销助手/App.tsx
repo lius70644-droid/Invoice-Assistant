@@ -3,10 +3,9 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as api from './services/api';
 import { SubmissionRecord, ProcessingFile, InvoiceData, UserProfile, ReimbursementStatus } from './types';
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// 设置pdf.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+// 设置pdf.js worker - 使用CDN
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 const SCHOOL_NAME = "江南大学";
 
@@ -232,8 +231,11 @@ const App: React.FC = () => {
 
   // PDF转图片函数
   const convertPdfToImage = async (file: File): Promise<string> => {
+    console.log('Starting PDF conversion for:', file.name);
     const arrayBuffer = await file.arrayBuffer();
+    console.log('ArrayBuffer created, loading PDF...');
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    console.log('PDF loaded, pages:', pdf.numPages);
     const page = await pdf.getPage(1); // 只取第一页
 
     const viewport = page.getViewport({ scale: 2 });
@@ -243,6 +245,7 @@ const App: React.FC = () => {
     canvas.width = viewport.width;
 
     await page.render({ canvasContext: context!, viewport, canvas }).promise;
+    console.log('PDF page rendered to canvas');
     return canvas.toDataURL('image/png');
   };
 
@@ -268,9 +271,12 @@ const App: React.FC = () => {
       if (file.type === 'application/pdf') {
         // PDF文件需要转换为图片预览
         try {
+          console.log('Converting PDF to image...', file.name);
           previewUrl = await convertPdfToImage(file);
+          console.log('PDF converted successfully');
         } catch (error) {
-          alert('PDF预览生成失败');
+          console.error('PDF preview error:', error);
+          alert('PDF预览生成失败: ' + (error as Error).message);
           continue;
         }
       } else {
