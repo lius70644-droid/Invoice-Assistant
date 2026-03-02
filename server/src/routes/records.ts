@@ -242,13 +242,14 @@ router.delete('/:id', async (req: any, res) => {
 
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      // 先尝试用管理员 secret 验证
+
+      // 优先检查是否是管理员 token
       try {
         const adminPayload = jwt.verify(token, config.jwt.secret + '_admin') as AdminPayload;
         isAdmin = true;
         (req as any).admin = adminPayload;
       } catch {
-        // 再尝试用用户 secret 验证
+        // 如果不是管理员 token，验证用户 token
         try {
           user = jwt.verify(token, config.jwt.secret) as UserPayload;
           (req as any).user = user;
@@ -260,10 +261,21 @@ router.delete('/:id', async (req: any, res) => {
       return res.status(401).json({ error: '未登录' });
     }
 
+    // 管理员直接删除，无需检查记录存在性
+    if (isAdmin) {
+      const { error: deleteError } = await supabase
+        .from('reimbursement_records')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) throw deleteError;
+      return res.json({ success: true });
+    }
+
     // 检查记录是否存在
     const { data: record, error: fetchError } = await supabase
       .from('reimbursement_records')
-      .select('*')
+      .select('student_id, status')
       .eq('id', id)
       .single();
 
@@ -271,13 +283,13 @@ router.delete('/:id', async (req: any, res) => {
       return res.status(404).json({ error: '记录不存在' });
     }
 
-    // 允许用户删除自己的记录，或管理员删除任何记录
-    if (!isAdmin && user && record.student_id !== user.studentId) {
+    // 检查权限
+    if (user && record.student_id !== user.studentId) {
       return res.status(403).json({ error: '无权限删除此记录' });
     }
 
     // 普通用户只能删除状态为 box 的记录
-    if (!isAdmin && record.status !== 'box') {
+    if (record.status !== 'box') {
       return res.status(403).json({ error: '只能删除待提交的记录' });
     }
 
