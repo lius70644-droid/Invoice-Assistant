@@ -1,0 +1,7 @@
+{
+  "name": "风味组报销助手",
+  "description": "基于 AI 的极速发票识别与报销进度追踪工具",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

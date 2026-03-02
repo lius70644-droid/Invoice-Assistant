@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(claude mcp:*)",
+      "mcp__tavily__tavily_search",
+      "mcp__tavily__tavily_research",
+      "Bash(cmd:*)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs",
+      "mcp__tavily__tavily_extract",
+      "mcp__tavily__tavily_crawl",
+      "Bash(curl:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:api.aliyun.com)",
+      "Bash(npm install:*)",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)",
+      "WebFetch(domain:help.aliyun.com)",
+      "Bash(powershell:*)",
+      "Bash(node:*)",
+      "Bash(git init:*)",
+      "mcp__github__get_file_contents",
+      "Bash(git add:*)"
+    ]
+  }
+}
