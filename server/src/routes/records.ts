@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import jwt from 'jsonwebtoken';
 import { supabase } from '../lib/supabase';
 import { authenticateUser, UserPayload } from '../middleware/auth';
 import { config } from '../config';
@@ -178,6 +179,17 @@ router.put('/:id/survey', authenticateUser, async (req: any, res) => {
   }
 });
 
+// CSV 字段转义函数
+const escapeCSV = (val: any): string => {
+  if (val === null || val === undefined) return '';
+  const str = String(val);
+  // 如果包含逗号、引号或换行符，需要用双引号包裹并转义内部双引号
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+};
+
 // 用户导出自己的报销记录
 router.get('/export', authenticateUser, async (req: any, res) => {
   try {
@@ -201,7 +213,7 @@ router.get('/export', authenticateUser, async (req: any, res) => {
       r.survey_answers?.hasDoubleSignature ? '是' : '否',
       r.survey_answers?.hasPaymentRecord ? '是' : '否',
       new Date(r.created_at).toLocaleString('zh-CN')
-    ]);
+    ].map(escapeCSV));
 
     const csvContent = '\ufeff' + [headers, ...rows].map(e => e.join(',')).join('\n');
 
@@ -210,6 +222,56 @@ router.get('/export', authenticateUser, async (req: any, res) => {
     res.send(csvContent);
   } catch (error: any) {
     console.error('Export error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 删除报销记录
+router.delete('/:id', authenticateUser, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const user = req.user as UserPayload;
+
+    // 检查记录是否存在且属于当前用户
+    const { data: record, error: fetchError } = await supabase
+      .from('reimbursement_records')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !record) {
+      return res.status(404).json({ error: '记录不存在' });
+    }
+
+    // 检查是否为管理员（通过自定义 header 或 JWT token 判断）
+    const authHeader = req.headers.authorization;
+    const isAdminMode = req.headers['x-admin-mode'] === 'true';
+    let isAdmin = isAdminMode;
+
+    if (!isAdmin && authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        const decoded = jwt.verify(token, config.jwt.secret + '_admin');
+        isAdmin = !!decoded;
+      } catch (e) {
+        // 不是管理员 token，继续验证用户
+      }
+    }
+
+    // 允许用户删除自己的记录，或管理员删除任何记录
+    if (!isAdmin && record.student_id !== user.studentId) {
+      return res.status(403).json({ error: '无权限删除此记录' });
+    }
+
+    const { error: deleteError } = await supabase
+      .from('reimbursement_records')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) throw deleteError;
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Delete record error:', error);
     res.status(500).json({ error: error.message });
   }
 });

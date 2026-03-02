@@ -6,6 +6,16 @@ import { authenticateAdmin } from '../middleware/auth';
 
 const router = Router();
 
+// CSV 字段转义函数
+const escapeCSV = (val: any): string => {
+  if (val === null || val === undefined) return '';
+  const str = String(val);
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+};
+
 // 管理员登录
 router.post('/login', async (req, res) => {
   try {
@@ -119,7 +129,7 @@ router.get('/export', authenticateAdmin, async (req, res) => {
       r.survey_answers?.hasPaymentRecord ? '是' : '否',
       r.status,
       r.rejection_reason || ''
-    ]);
+    ].map(escapeCSV));
 
     const csvContent = '\ufeff' + [headers, ...rows].map(e => e.join(',')).join('\n');
 

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as api from './services/api';
 import { SubmissionRecord, ProcessingFile, InvoiceData, UserProfile, ReimbursementStatus } from './types';
 
@@ -23,6 +23,14 @@ const App: React.FC = () => {
   const [surveyQueue, setSurveyQueue] = useState<SurveyType[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 缓存当前用户的记录，避免重复过滤
+  const userRecords = useMemo(() => {
+    if (!user) return [];
+    return records.filter(r => r.studentId === user.studentId);
+  }, [records, user?.studentId]);
+
+  const displayRecords = isAdminMode ? records : userRecords;
 
   const mapRecordFromApi = (record: any): SubmissionRecord => ({
     id: record.id,
@@ -94,15 +102,23 @@ const App: React.FC = () => {
     };
     if (!profile.name || !profile.studentId) return alert("请补全必要信息");
 
+    // 验证输入
+    if (profile.studentId.length < 4) {
+      return alert("学号格式不正确");
+    }
+    if (profile.phone && !/^\d{11}$/.test(profile.phone)) {
+      return alert("请输入正确的11位手机号");
+    }
+
     try {
       const result = await api.login(profile);
       localStorage.setItem('token', result.token);
+      localStorage.setItem('invoice_user_profile', JSON.stringify(profile));
+      setUser(profile);
+      setIsLoginView(false);
     } catch (error) {
-      // 后端连接失败时使用本地模式
+      alert('登录失败，请检查网络连接后重试');
     }
-    localStorage.setItem('invoice_user_profile', JSON.stringify(profile));
-    setUser(profile);
-    setIsLoginView(false);
   };
 
   const handleAdminLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -131,11 +147,25 @@ const App: React.FC = () => {
     }).catch(() => alert("复制失败，请手动复制地址栏链接"));
   };
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
     if (!fileList) return;
     const selectedFiles = Array.from(fileList) as File[];
-    const newFiles: ProcessingFile[] = selectedFiles.map(file => ({
+
+    // 过滤超出大小限制的文件
+    const validFiles = selectedFiles.filter(f => {
+      if (f.size > MAX_FILE_SIZE) {
+        alert(`文件 ${f.name} 超过大小限制 (10MB)`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length === 0) return;
+
+    const newFiles: ProcessingFile[] = validFiles.map(file => ({
       id: Math.random().toString(36).substr(2, 9),
       file,
       previewUrl: URL.createObjectURL(file),
@@ -201,6 +231,19 @@ const App: React.FC = () => {
       if (becomingPaid) { setActiveWorkflowId(recordId); setSurveyQueue(['payment_record']); }
       setRecords(prev => prev.map(r => r.id === recordId ? { ...r, isPaid: becomingPaid, paidEditCount: r.paidEditCount + 1 } : r));
     } catch (error: any) { alert('更新失败: ' + error.message); }
+  };
+
+  const handleDeleteRecord = async (recordId: string) => {
+    const confirmDelete = window.confirm("确定要删除这条报销记录吗？此操作不可恢复。");
+    if (!confirmDelete) return;
+
+    try {
+      await api.deleteRecord(recordId, isAdminMode);
+      setRecords(prev => prev.filter(r => r.id !== recordId));
+      alert('删除成功');
+    } catch (error: any) {
+      alert('删除失败: ' + error.message);
+    }
   };
 
   const handleSurveyAnswer = async (answer: boolean) => {
@@ -458,15 +501,15 @@ const App: React.FC = () => {
               <div className="flex items-center gap-4">
                 <div className="flex flex-col items-end">
                   <span className="text-[10px] font-black text-slate-300 uppercase">Records Found</span>
-                  <span className="text-xl font-black text-blue-600">{(isAdminMode ? records : records.filter(r => r.studentId === user.studentId)).length}</span>
+                  <span className="text-xl font-black text-blue-600">{displayRecords.length}</span>
                 </div>
               </div>
             </div>
 
             <div className={`flex-grow overflow-auto p-8 ${isAdminMode ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8' : 'space-y-6'}`}>
               {dbError && <div className="col-span-full p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs font-bold flex items-center gap-3 animate-pulse"><span>⚠️ 数据库连接失败: {dbError}。请检查环境变量配置。</span></div>}
-              {(isAdminMode ? records : records.filter(r => r.studentId === user.studentId)).length === 0 && !dbError && <div className="col-span-full flex flex-col items-center justify-center h-[50vh] opacity-30 grayscale"><span className="text-9xl mb-4">📥</span><p className="text-2xl font-black text-slate-400">尚无报销记录</p></div>}
-              {(isAdminMode ? records : records.filter(r => r.studentId === user.studentId)).map(r => (
+              {displayRecords.length === 0 && !dbError && <div className="col-span-full flex flex-col items-center justify-center h-[50vh] opacity-30 grayscale"><span className="text-9xl mb-4">📥</span><p className="text-2xl font-black text-slate-400">尚无报销记录</p></div>}
+              {displayRecords.map(r => (
                 <div key={r.id} className={`bg-white border-2 rounded-[2rem] p-8 transition-all group hover:shadow-2xl relative overflow-hidden flex flex-col ${r.status === 'rejected' ? 'border-red-100 bg-red-50/10 shadow-red-50/20' : 'border-slate-50'}`}>
                   {r.status === 'rejected' && <div className="absolute top-6 right-6 z-0 pointer-events-none opacity-20 rotate-12"><span className="text-9xl font-black text-red-500 select-none">×</span></div>}
                   {r.status === 'success' && <div className="absolute top-6 right-6 z-0 pointer-events-none opacity-10"><span className="text-9xl font-black text-green-500 select-none">✓</span></div>}
@@ -479,9 +522,18 @@ const App: React.FC = () => {
                         {isAdminMode && <div className="mt-1 flex items-center gap-2"><div className="w-2 h-2 bg-blue-500 rounded-full"></div><span className="text-[11px] font-black text-blue-600">{r.name} · {r.studentId}</span></div>}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-black text-blue-600">¥{r.amount.toFixed(2)}</div>
-                      <button onClick={() => toggleRecordPaidStatus(r.id)} className={`mt-2 px-4 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-95 shadow-sm ${r.isPaid ? 'bg-blue-500 text-white shadow-blue-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>{r.isPaid ? '已付发票' : '待付发票'}</button>
+                    <div className="flex items-start gap-3">
+                      <div className="text-right">
+                        <div className="text-2xl font-black text-blue-600">¥{r.amount.toFixed(2)}</div>
+                        <button onClick={() => toggleRecordPaidStatus(r.id)} className={`mt-2 px-4 py-1.5 rounded-xl text-[10px] font-black transition-all active:scale-95 shadow-sm ${r.isPaid ? 'bg-blue-500 text-white shadow-blue-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>{r.isPaid ? '已付发票' : '待付发票'}</button>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteRecord(r.id)}
+                        className="p-2 rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                        title="删除报销单"
+                      >
+                        🗑️
+                      </button>
                     </div>
                   </div>
                   <div className="relative z-10 flex-grow"><ProgressSteps status={r.status} reason={r.rejectionReason} /></div>

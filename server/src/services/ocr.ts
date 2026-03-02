@@ -12,6 +12,8 @@ export interface InvoiceData {
   amount: number;
 }
 
+const OCR_TIMEOUT = 30000; // 30秒超时
+
 // 直接调用阿里云REST API - OCR统一识别服务
 const callAliyunAPI = async (imageBase64: string): Promise<any> => {
   const { accessKeyId, accessKeySecret } = config.aliyun;
@@ -51,24 +53,38 @@ const callAliyunAPI = async (imageBase64: string): Promise<any> => {
   // 解码base64为Buffer，使用body参数传图片
   const imageBuffer = Buffer.from(imageBase64, 'base64');
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/octet-stream',
-      'Accept': 'application/json',
-    },
-    body: imageBuffer,
-  });
+  // 添加超时控制
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), OCR_TIMEOUT);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('API Error Response:', errorText);
-    throw new Error(`API调用失败: ${response.status} ${errorText}`);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Accept': 'application/json',
+      },
+      body: imageBuffer,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error Response:', errorText);
+      throw new Error(`API调用失败: ${response.status} ${errorText}`);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('发票识别超时，请重试');
+    }
+    throw error;
   }
-
-  const result = await response.json();
-  console.log('API Raw Response:', JSON.stringify(result, null, 2));
-  return result;
 };
 
 export const extractInvoiceData = async (imageBase64: string): Promise<InvoiceData> => {
