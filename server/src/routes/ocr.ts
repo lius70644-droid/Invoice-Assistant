@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { extractInvoiceData } from '../services/ocr';
+import { extractInvoiceData, setUserCategory } from '../services/ocr';
 import { config } from '../config';
 
 const router = Router();
@@ -9,9 +9,10 @@ router.post('/extract', async (req, res) => {
   try {
     const { image, category } = req.body;
 
-    // category 可以用于后续业务逻辑，目前先接收但不强制使用
+    // 设置用户勾选的分类
     if (category) {
-      console.log('Received category:', category);
+      setUserCategory(category);
+      console.log('Setting user category:', category);
     }
 
     if (!image) {

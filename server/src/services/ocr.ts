@@ -12,6 +12,15 @@ export interface InvoiceData {
   amount: number;
 }
 
+// 用户勾选的分类
+let userSelectedCategory: string = '通用';
+
+export const setUserCategory = (category: string) => {
+  userSelectedCategory = category;
+};
+
+export const getUserCategory = () => userSelectedCategory;
+
 const OCR_TIMEOUT = 30000; // 30秒超时
 
 // 直接调用阿里云REST API - OCR统一识别服务
@@ -131,7 +140,7 @@ export const extractInvoiceData = async (imageBase64: string): Promise<InvoiceDa
       sellerTaxId,
       buyerTaxId,
       sellerBankAccount,
-      category: kvInfo.title || '通用',
+      category: userSelectedCategory,
       amount,
     };
   } catch (error: any) {
